@@ -34,7 +34,7 @@ async function checkRateLimit(ip: string): Promise<{ allowed: boolean; remaining
 
 function getClientIp(request: NextRequest): string {
   const forwarded = request.headers.get('x-forwarded-for');
-  const ip = forwarded ? forwarded.split(',')[0] : request.ip || 'unknown';
+  const ip = forwarded ? forwarded.split(',')[0].trim() : 'unknown';
   return ip;
 }
 
