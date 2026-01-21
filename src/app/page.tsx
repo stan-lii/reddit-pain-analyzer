@@ -1,66 +1,190 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+'use client';
+
+import React, { useState } from 'react';
+import Window from '@/components/ui/Window';
+import SearchForm from '@/components/SearchForm';
+import ProgressTracker from '@/components/ProgressTracker';
+import ResultsDisplay from '@/components/ResultsDisplay';
+import RateLimitModal from '@/components/RateLimitModal';
+import { Analysis, SearchResponse, AnalyzeResponse } from '@/lib/types';
+
+type AppState = 'idle' | 'searching' | 'fetching' | 'analyzing' | 'complete' | 'rate-limited';
 
 export default function Home() {
+  const [state, setState] = useState<AppState>('idle');
+  const [currentStep, setCurrentStep] = useState(0);
+  const [analysis, setAnalysis] = useState<Analysis[]>([]);
+  const [rateLimitResetTime, setRateLimitResetTime] = useState(0);
+  const [error, setError] = useState('');
+
+  const handleSearch = async (keywords: string[]) => {
+    try {
+      setError('');
+      setState('searching');
+      setCurrentStep(1); // Searching Google
+
+      // Step 1 & 2: Search and fetch Reddit posts
+      const searchResponse = await fetch('/api/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keywords }),
+      });
+
+      if (searchResponse.status === 429) {
+        const rateLimitData = await searchResponse.json();
+        setRateLimitResetTime(rateLimitData.resetTime);
+        setState('rate-limited');
+        return;
+      }
+
+      if (!searchResponse.ok) {
+        const errorData = await searchResponse.json();
+        throw new Error(errorData.error || 'Search failed');
+      }
+
+      const searchData: SearchResponse = await searchResponse.json();
+
+      // Update to fetching state
+      setState('fetching');
+      setCurrentStep(2); // Fetching Reddit
+
+      // Check if we got any results
+      const totalPosts = Object.values(searchData.results).reduce(
+        (sum, posts) => sum + posts.length,
+        0
+      );
+
+      if (totalPosts === 0) {
+        throw new Error('No Reddit posts found for the given keywords');
+      }
+
+      // Step 3: Analyze with AI
+      setState('analyzing');
+      setCurrentStep(3); // AI Analysis
+
+      const analyzeResponse = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ searchResults: searchData.results }),
+      });
+
+      if (!analyzeResponse.ok) {
+        const errorData = await analyzeResponse.json();
+        throw new Error(errorData.error || 'Analysis failed');
+      }
+
+      const analyzeData: AnalyzeResponse = await analyzeResponse.json();
+
+      // Step 4: Complete
+      setAnalysis(analyzeData.analysis);
+      setState('complete');
+      setCurrentStep(4); // Complete
+    } catch (err) {
+      console.error('Search error:', err);
+      setError(err instanceof Error ? err.message : 'An unknown error occurred');
+      setState('idle');
+      setCurrentStep(0);
+    }
+  };
+
+  const handleDownloadPDF = async () => {
+    try {
+      // Dynamically import PDF generation to reduce initial bundle size
+      const { generatePDF } = await import('@/lib/pdf');
+      await generatePDF(analysis);
+    } catch (err) {
+      console.error('PDF generation error:', err);
+      setError('Failed to generate PDF. Please try again.');
+    }
+  };
+
+  const handleNewSearch = () => {
+    setState('idle');
+    setCurrentStep(0);
+    setAnalysis([]);
+    setError('');
+  };
+
+  const handleRateLimitClose = () => {
+    setState('idle');
+    setCurrentStep(0);
+  };
+
+  const isProcessing = state === 'searching' || state === 'fetching' || state === 'analyzing';
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>To get started, edit the page.tsx file.</h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="app-container">
+      <div className="desktop">
+        <Window title="Reddit Pain Point Analyzer - Windows 98 Edition" className="main-window">
+          <div className="app-content">
+            <div className="app-header">
+              <h1>🔍 Reddit Pain Point Analyzer</h1>
+              <p className="app-description">
+                Discover pain points and business opportunities from Reddit discussions using AI
+              </p>
+            </div>
+
+            {state !== 'complete' && (
+              <>
+                <SearchForm onSearch={handleSearch} disabled={isProcessing} />
+
+                {isProcessing && (
+                  <div className="progress-section">
+                    <ProgressTracker currentStep={currentStep} />
+                    <div className="loading-message">
+                      {state === 'searching' && '🔎 Searching Reddit via Google...'}
+                      {state === 'fetching' && '📥 Fetching Reddit posts and comments...'}
+                      {state === 'analyzing' && '🤖 Analyzing with Google Gemini AI...'}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {error && (
+              <div className="error-section">
+                <div className="error-box">
+                  <strong>❌ Error:</strong> {error}
+                </div>
+              </div>
+            )}
+
+            {state === 'complete' && (
+              <ResultsDisplay
+                analysis={analysis}
+                onDownloadPDF={handleDownloadPDF}
+                onNewSearch={handleNewSearch}
+              />
+            )}
+          </div>
+
+          <div className="status-bar">
+            <div className="status-item">
+              {state === 'idle' && '💤 Ready'}
+              {state === 'searching' && '🔍 Searching...'}
+              {state === 'fetching' && '📥 Fetching...'}
+              {state === 'analyzing' && '🤖 Analyzing...'}
+              {state === 'complete' && '✅ Complete'}
+              {state === 'rate-limited' && '⏱️ Rate Limited'}
+            </div>
+          </div>
+        </Window>
+
+        <div className="desktop-info">
+          <div className="desktop-icon">
+            <div className="icon">💾</div>
+            <div className="icon-label">My Computer</div>
+          </div>
+          <div className="desktop-icon">
+            <div className="icon">🗑️</div>
+            <div className="icon-label">Recycle Bin</div>
+          </div>
         </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      </div>
+
+      {state === 'rate-limited' && (
+        <RateLimitModal resetTime={rateLimitResetTime} onClose={handleRateLimitClose} />
+      )}
     </div>
   );
 }
