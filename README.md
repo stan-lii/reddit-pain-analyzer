@@ -249,4 +249,4 @@ If you encounter any issues or have questions:
 
 ---
 
-Made with 💾 and nostalgia for Windows 98
+Made with 💾 and nostalgia for Windows 98.
