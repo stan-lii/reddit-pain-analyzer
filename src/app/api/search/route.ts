@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { kv } from '@vercel/kv';
 import { searchMultipleKeywords } from '@/lib/serpapi';
-import { fetchPostsByKeyword } from '@/lib/reddit';
-import { SearchResponse } from '@/lib/types';
 
 const RATE_LIMIT_MAX = 5;
 const RATE_LIMIT_WINDOW = 30 * 60; // 30 minutes in seconds
@@ -82,18 +80,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Step 1: Search Reddit URLs via SerpAPI
+    // Search Reddit URLs via SerpAPI
+    // Client will fetch the actual posts to avoid 403 errors
     const urlsByKeyword = await searchMultipleKeywords(validKeywords);
 
-    // Step 2: Fetch Reddit posts from URLs
-    const postsByKeyword = await fetchPostsByKeyword(urlsByKeyword);
-
-    const response: SearchResponse = {
-      results: postsByKeyword,
+    return NextResponse.json({
+      urlsByKeyword,
       remaining: rateLimit.remaining,
-    };
-
-    return NextResponse.json(response);
+    });
   } catch (error) {
     console.error('Search API error:', error);
     return NextResponse.json(

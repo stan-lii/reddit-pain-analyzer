@@ -6,7 +6,8 @@ import SearchForm from '@/components/SearchForm';
 import ProgressTracker from '@/components/ProgressTracker';
 import ResultsDisplay from '@/components/ResultsDisplay';
 import RateLimitModal from '@/components/RateLimitModal';
-import { Analysis, SearchResponse, AnalyzeResponse } from '@/lib/types';
+import { Analysis, AnalyzeResponse, RedditPost } from '@/lib/types';
+import { fetchMultiplePostsClient } from '@/lib/reddit-client';
 
 type AppState = 'idle' | 'searching' | 'fetching' | 'analyzing' | 'complete' | 'rate-limited';
 
@@ -23,7 +24,7 @@ export default function Home() {
       setState('searching');
       setCurrentStep(1); // Searching Google
 
-      // Step 1 & 2: Search and fetch Reddit posts
+      // Step 1: Search for Reddit URLs via SerpAPI
       const searchResponse = await fetch('/api/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -42,14 +43,20 @@ export default function Home() {
         throw new Error(errorData.error || 'Search failed');
       }
 
-      const searchData: SearchResponse = await searchResponse.json();
+      const { urlsByKeyword } = await searchResponse.json();
 
-      // Update to fetching state
+      // Step 2: Fetch Reddit posts CLIENT-SIDE (bypasses 403 blocking)
       setState('fetching');
       setCurrentStep(2); // Fetching Reddit
 
+      const postsByKeyword: Record<string, RedditPost[]> = {};
+
+      for (const [keyword, urls] of Object.entries(urlsByKeyword)) {
+        postsByKeyword[keyword] = await fetchMultiplePostsClient(urls as string[]);
+      }
+
       // Check if we got any results
-      const totalPosts = Object.values(searchData.results).reduce(
+      const totalPosts = Object.values(postsByKeyword).reduce(
         (sum, posts) => sum + posts.length,
         0
       );
@@ -65,7 +72,7 @@ export default function Home() {
       const analyzeResponse = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ searchResults: searchData.results }),
+        body: JSON.stringify({ searchResults: postsByKeyword }),
       });
 
       if (!analyzeResponse.ok) {
