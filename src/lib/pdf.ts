@@ -180,6 +180,31 @@ export async function generatePDF(analysis: Analysis[]): Promise<void> {
         doc.setFontSize(10);
         doc.setFont('helvetica', 'bold');
         const titleLines = doc.splitTextToSize(idea.idea, contentWidth);
+
+        // Details text
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        const targetLines = doc.splitTextToSize(`Target: ${idea.targetMarket}`, contentWidth);
+        const revenueLines = doc.splitTextToSize(`Revenue: ${idea.potentialRevenue}`, contentWidth);
+        const addressesText = `Addresses: ${idea.painPointsAddressed.join(', ')}`;
+        const addressLines = doc.splitTextToSize(addressesText, contentWidth);
+
+        // Calculate heights
+        const titleHeight = titleLines.length * 5;
+        const badgeHeight = 5;
+        const targetHeight = Math.min(targetLines.length, 2) * 4.5;
+        const revenueHeight = Math.min(revenueLines.length, 2) * 4.5;
+        const addressHeight = Math.min(addressLines.length, 2) * 4.5;
+        const boxHeight = 4 + titleHeight + 2 + badgeHeight + targetHeight + revenueHeight + addressHeight + 3;
+
+        // Draw box background FIRST
+        doc.setDrawColor(0, 128, 128); // Teal border
+        doc.setFillColor(240, 248, 255); // Light blue background
+        doc.rect(margin, boxStartY, maxWidth, boxHeight, 'FD');
+
+        // Render title
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
         for (const line of titleLines) {
           doc.text(line, margin + 2, boxContentY);
           boxContentY += 5;
@@ -201,33 +226,22 @@ export async function generatePDF(analysis: Analysis[]): Promise<void> {
         doc.setFont('helvetica', 'normal');
 
         // Target market
-        const targetLines = doc.splitTextToSize(`Target: ${idea.targetMarket}`, contentWidth);
         for (const line of targetLines.slice(0, 2)) {
           doc.text(line, margin + 2, boxContentY);
           boxContentY += 4.5;
         }
 
         // Revenue potential
-        const revenueLines = doc.splitTextToSize(`Revenue: ${idea.potentialRevenue}`, contentWidth);
         for (const line of revenueLines.slice(0, 2)) {
           doc.text(line, margin + 2, boxContentY);
           boxContentY += 4.5;
         }
 
         // Addresses
-        const addressesText = `Addresses: ${idea.painPointsAddressed.join(', ')}`;
-        const addressLines = doc.splitTextToSize(addressesText, contentWidth);
         for (const line of addressLines.slice(0, 2)) {
           doc.text(line, margin + 2, boxContentY);
           boxContentY += 4.5;
         }
-
-        const boxHeight = boxContentY - boxStartY + 3; // Bottom padding
-
-        // Draw box
-        doc.setDrawColor(0, 128, 128); // Teal border
-        doc.setFillColor(240, 248, 255); // Light blue background
-        doc.rect(margin, boxStartY, maxWidth, boxHeight, 'FD');
 
         yPosition = boxContentY + 5;
       }
