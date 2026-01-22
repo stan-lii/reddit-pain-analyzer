@@ -9,9 +9,43 @@ interface SearchFormProps {
   disabled?: boolean;
 }
 
+// Helper function to count keywords
+function countKeywords(input: string): number {
+  return input
+    .split(',')
+    .map(k => k.trim())
+    .filter(k => k.length > 0)
+    .length;
+}
+
 export default function SearchForm({ onSearch, disabled = false }: SearchFormProps) {
   const [keywordInput, setKeywordInput] = useState('');
   const [error, setError] = useState('');
+
+  const handleInputChange = (newValue: string) => {
+    const newCount = countKeywords(newValue);
+
+    // Block input if trying to add a 4th keyword
+    if (newCount > 3) {
+      // Intelligently truncate to first 3 keywords
+      const keywords = newValue
+        .split(',')
+        .map(k => k.trim())
+        .filter(k => k.length > 0)
+        .slice(0, 3);
+
+      setKeywordInput(keywords.join(', '));
+      setError('Maximum 3 keywords allowed');
+      return;
+    }
+
+    // Clear error if count is valid
+    if (newCount <= 3 && error === 'Maximum 3 keywords allowed') {
+      setError('');
+    }
+
+    setKeywordInput(newValue);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,6 +78,9 @@ export default function SearchForm({ onSearch, disabled = false }: SearchFormPro
     onSearch(keywords);
   };
 
+  const keywordCount = countKeywords(keywordInput);
+  const isAtLimit = keywordCount >= 3;
+
   return (
     <form onSubmit={handleSubmit} className="search-form">
       <div className="form-group">
@@ -52,11 +89,19 @@ export default function SearchForm({ onSearch, disabled = false }: SearchFormPro
         </label>
         <Input
           value={keywordInput}
-          onChange={setKeywordInput}
+          onChange={handleInputChange}
           placeholder="e.g., productivity tools, time management, focus apps"
           disabled={disabled}
           className="keyword-input"
         />
+        <div className="keyword-counter">
+          {keywordInput.length > 0 && (
+            <span className={isAtLimit ? 'limit-reached' : ''}>
+              {keywordCount}/3 keywords
+              {isAtLimit && ' - limit reached'}
+            </span>
+          )}
+        </div>
         <div className="form-hint">
           Tip: Use specific keywords related to pain points or problems people discuss on Reddit
         </div>

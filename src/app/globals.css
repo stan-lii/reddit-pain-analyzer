@@ -740,6 +740,18 @@ h1, h2, h3, h4, h5, h6 {
   width: 100%;
 }
 
+.keyword-counter {
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--button-shadow);
+  min-height: 14px; /* Prevent layout shift */
+}
+
+.keyword-counter .limit-reached {
+  color: #c00000;
+  font-weight: bold;
+}
+
 .form-hint {
   margin-top: 4px;
   font-size: 10px;
