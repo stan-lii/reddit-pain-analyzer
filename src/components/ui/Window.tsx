@@ -11,17 +11,6 @@ export default function Window({ title, children, className = '' }: WindowProps)
     <div className={`window ${className}`}>
       <div className="window-title-bar">
         <span className="window-title">{title}</span>
-        <div className="window-controls">
-          <button className="window-control-btn" aria-label="Minimize">
-            _
-          </button>
-          <button className="window-control-btn" aria-label="Maximize">
-            □
-          </button>
-          <button className="window-control-btn" aria-label="Close">
-            ×
-          </button>
-        </div>
       </div>
       <div className="window-body">
         {children}

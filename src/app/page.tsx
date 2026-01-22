@@ -122,7 +122,7 @@ export default function Home() {
   return (
     <div className="app-container">
       <div className="desktop">
-        <Window title="Reddit Pain Point Analyzer - Windows 98 Edition" className="main-window">
+        <Window title="Reddit Pain Point Analyzer" className="main-window">
           <div className="app-content">
             <div className="app-header">
               <h1>🔍 Reddit Pain Point Analyzer</h1>
@@ -176,17 +176,6 @@ export default function Home() {
             </div>
           </div>
         </Window>
-
-        <div className="desktop-info">
-          <div className="desktop-icon">
-            <div className="icon">💾</div>
-            <div className="icon-label">My Computer</div>
-          </div>
-          <div className="desktop-icon">
-            <div className="icon">🗑️</div>
-            <div className="icon-label">Recycle Bin</div>
-          </div>
-        </div>
       </div>
 
       {state === 'rate-limited' && (
